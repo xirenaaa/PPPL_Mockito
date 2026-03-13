@@ -1,0 +1,857 @@
+\documentclass[12pt,a4paper]{article}
+
+% ─── Packages ────────────────────────────────────────────────────────────────
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[bahasa]{babel}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{amsmath}
+\usepackage{setspace}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{float}
+\usepackage{parskip}
+
+% ─── Page Geometry ───────────────────────────────────────────────────────────
+\geometry{
+    top=3cm,
+    bottom=3cm,
+    left=4cm,
+    right=3cm
+}
+
+% ─── Spacing ─────────────────────────────────────────────────────────────────
+\onehalfspacing
+
+% ─── Header / Footer ─────────────────────────────────────────────────────────
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[R]{\small Pengujian Perangkat Lunak -- Mockito}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+% ─── Colors ──────────────────────────────────────────────────────────────────
+\definecolor{codegreen}{rgb}{0.0,0.5,0.0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{codeblue}{rgb}{0.0,0.0,0.6}
+\definecolor{backcolour}{rgb}{0.97,0.97,0.97}
+\definecolor{keywordcolor}{rgb}{0.0,0.0,0.6}
+\definecolor{stringcolor}{rgb}{0.63,0.13,0.13}
+
+% ─── Code Listing Style ──────────────────────────────────────────────────────
+\lstdefinestyle{javaStyle}{
+    backgroundcolor=\color{backcolour},
+    commentstyle=\color{codegreen}\itshape,
+    keywordstyle=\color{keywordcolor}\bfseries,
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{stringcolor},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,
+    breaklines=true,
+    captionpos=b,
+    keepspaces=true,
+    numbers=left,
+    numbersep=5pt,
+    showspaces=false,
+    showstringspaces=false,
+    showtabs=false,
+    tabsize=4,
+    frame=single,
+    rulecolor=\color{black!30},
+    language=Java
+}
+\lstset{style=javaStyle}
+
+% ─── Hyperref Setup ──────────────────────────────────────────────────────────
+\hypersetup{
+    colorlinks=true,
+    linkcolor=black,
+    urlcolor=blue,
+    citecolor=black
+}
+
+% ─── Title Information ───────────────────────────────────────────────────────
+\title{
+    \vspace{-1cm}
+    {\Large \textbf{LAPORAN PRAKTIKUM}} \\[0.5em]
+    {\large \textbf{Pengujian Perangkat Lunak dengan Framework Mockito}} \\[0.3em]
+    {\normalsize Studi Kasus: Sistem Manajemen Perpustakaan}
+}
+\author{
+    \textbf{Program Studi Informatika} \\
+    Pengujian Perangkat Lunak (PPPL)
+}
+\date{\today}
+
+% ═════════════════════════════════════════════════════════════════════════════
+\begin{document}
+% ═════════════════════════════════════════════════════════════════════════════
+
+\maketitle
+\thispagestyle{fancy}
+
+\begin{abstract}
+\noindent
+Laporan ini memaparkan hasil dan pembahasan pengujian perangkat lunak menggunakan
+\textit{framework} Mockito pada studi kasus sistem manajemen perpustakaan yang
+diimplementasikan dalam bahasa pemrograman Java. Pengujian dilakukan dengan
+memanfaatkan konsep \textit{mock object} dan \textit{stub} guna mengisolasi
+unit-unit kode dari ketergantungan eksternal, sehingga pengujian dapat berjalan
+secara mandiri, deterministik, dan \textit{reproducible}. Tiga skenario utama
+dikaji secara mendalam: (1) pengecekan ketersediaan buku berdasarkan
+\textit{identifier} unik, (2) peminjaman buku dengan dua skenario kondisional,
+dan (3) pengiriman notifikasi pasca peminjaman beserta verifikasi urutan
+pemanggilan menggunakan \texttt{InOrder}. Seluruh pengujian dilaksanakan dengan
+JUnit 5 dan Mockito 5.11.0 di atas JDK 17. Hasil pengujian menunjukkan bahwa
+kedelapan \textit{test case} yang dirancang berhasil lulus (\textit{passed})
+tanpa kegagalan, membuktikan kebenaran implementasi dan efektivitas pendekatan
+\textit{test-driven} berbasis Mockito.
+\end{abstract}
+
+\tableofcontents
+\newpage
+
+% ─────────────────────────────────────────────────────────────────────────────
+\section{Pendahuluan}
+% ─────────────────────────────────────────────────────────────────────────────
+
+\subsection{Latar Belakang}
+
+Pengujian perangkat lunak (\textit{software testing}) merupakan salah satu
+tahapan kritis dalam siklus hidup pengembangan perangkat lunak (SDLC) yang
+bertujuan memastikan kualitas, keandalan, dan kebenaran fungsional suatu sistem.
+Dalam konteks \textit{unit testing}, pengujian idealnya bersifat terisolasi:
+setiap unit fungsi atau metode diuji secara independen tanpa bergantung pada
+komponen lain yang mungkin belum selesai diimplementasikan atau memiliki
+ketidakpastian dalam perilakunya.
+
+Untuk mencapai isolasi tersebut, digunakanlah teknik \textit{mocking}, yaitu
+pembuatan objek tiruan (\textit{mock object}) yang menggantikan peran objek
+nyata selama pengujian berlangsung. Mockito merupakan \textit{framework}
+\textit{mocking} yang paling banyak digunakan dalam ekosistem Java, menyediakan
+API yang ekspresif dan mudah dipahami untuk mendefinisikan perilaku objek tiruan
+(\textit{stubbing}) serta memverifikasi interaksi antar komponen
+(\textit{mocking}/\textit{verification}).
+
+\subsection{Tujuan}
+
+Tujuan dari laporan ini adalah:
+\begin{enumerate}[label=\arabic*.]
+    \item Menjelaskan secara akademis konsep \textit{stub} dan \textit{mock}
+          dalam konteks pengujian perangkat lunak berbasis Mockito.
+    \item Memaparkan implementasi dan hasil pengujian fungsi pengecekan
+          ketersediaan buku pada lapisan \textit{controller} dan \textit{model}.
+    \item Menganalisis dua skenario pengujian peminjaman buku:
+          kondisi buku tersedia dan kondisi buku sedang dipinjam.
+    \item Membahas penggunaan \texttt{InOrder} Mockito untuk memverifikasi
+          urutan pemanggilan metode dalam alur peminjaman buku beserta
+          pengiriman notifikasi.
+\end{enumerate}
+
+\subsection{Ruang Lingkup}
+
+Studi kasus yang digunakan adalah sistem manajemen perpustakaan sederhana dengan
+tiga kelas utama: \texttt{LibraryModel} (lapisan data/akses data),
+\texttt{LibraryControl} (lapisan logika bisnis/\textit{controller}), dan
+\texttt{NotificationService} (layanan pengiriman notifikasi). Pengujian
+dilaksanakan pada kelas \texttt{LibraryControl} dengan dependensinya
+(\texttt{LibraryModel} dan \texttt{NotificationService}) diejek menggunakan
+Mockito.
+
+% ─────────────────────────────────────────────────────────────────────────────
+\section{Tinjauan Pustaka}
+% ─────────────────────────────────────────────────────────────────────────────
+
+\subsection{Unit Testing}
+
+\textit{Unit testing} adalah proses verifikasi bahwa unit terkecil dari
+perangkat lunak—umumnya sebuah metode atau fungsi—bekerja sesuai dengan
+spesifikasi yang ditetapkan. Ciri khas \textit{unit test} yang baik mencakup:
+kecepatan eksekusi tinggi, isolasi penuh dari komponen lain (\textit{FIRST
+principle: Fast, Independent, Repeatable, Self-validating, Timely}), serta
+kemudahan pemeliharaan.
+
+\subsection{Mock Object dan Stub}
+
+Dalam taksonomi \textit{test doubles} yang diperkenalkan oleh Gerard Meszaros,
+terdapat beberapa jenis pengganti objek nyata, dua di antaranya yang paling
+relevan adalah:
+
+\begin{itemize}
+    \item \textbf{Stub}: Objek tiruan yang menyediakan respons telah ditentukan
+          sebelumnya (\textit{canned responses}) terhadap pemanggilan metode
+          tertentu selama pengujian. Stub tidak memverifikasi bagaimana metode
+          dipanggil; ia hanya memastikan bahwa \textit{system under test} (SUT)
+          menerima data yang dibutuhkan untuk menyelesaikan eksekusinya.
+          Dalam Mockito, \textit{stubbing} dilakukan menggunakan sintaks
+          \texttt{Mockito.when(\ldots).thenReturn(\ldots)}.
+
+    \item \textbf{Mock}: Objek tiruan yang diprogram dengan ekspektasi—berisi
+          definisi tentang panggilan metode mana yang \emph{harus} terjadi
+          dan \emph{berapa kali}. Setelah SUT dieksekusi, mock dapat
+          diverifikasi untuk memastikan interaksi yang diharapkan benar-benar
+          terjadi. Dalam Mockito, verifikasi dilakukan menggunakan
+          \texttt{Mockito.verify(\ldots)}.
+\end{itemize}
+
+\subsection{Framework Mockito}
+
+Mockito adalah \textit{open-source mocking framework} untuk Java yang
+memungkinkan pembuatan dan konfigurasi objek tiruan secara deklaratif.
+Fitur-fitur utama Mockito meliputi:
+
+\begin{itemize}
+    \item Anotasi \texttt{@Mock} untuk deklarasi \textit{mock object}.
+    \item Anotasi \texttt{@InjectMocks} untuk injeksi otomatis \textit{mock}
+          ke dalam SUT.
+    \item \texttt{Mockito.when().thenReturn()} untuk \textit{stubbing}.
+    \item \texttt{Mockito.verify()} dengan berbagai mode verifikasi seperti
+          \texttt{times(n)}, \texttt{never()}, \texttt{atLeast(n)}.
+    \item \texttt{InOrder} untuk verifikasi urutan pemanggilan metode.
+    \item \texttt{ArgumentMatchers} seperti \texttt{anyInt()},
+          \texttt{anyString()} untuk \textit{flexible argument matching}.
+\end{itemize}
+
+% ─────────────────────────────────────────────────────────────────────────────
+\section{Arsitektur dan Implementasi Sistem}
+% ─────────────────────────────────────────────────────────────────────────────
+
+\subsection{Struktur Proyek}
+
+Proyek dibangun menggunakan Apache Maven dengan konfigurasi kompilator Java 17
+dan dependensi JUnit Jupiter 5.10.2 serta Mockito 5.11.0. Struktur direktori
+proyek adalah sebagai berikut:
+
+\begin{verbatim}
+PPPL_Mockito/
+├── pom.xml
+└── src/
+    ├── main/java/org/example/
+    │   ├── Book.java
+    │   ├── LibraryModel.java
+    │   ├── LibraryControl.java
+    │   └── NotificationService.java
+    └── test/java/
+        └── LibraryTest.java
+\end{verbatim}
+
+\subsection{Kelas \texttt{Book}}
+
+Kelas \texttt{Book} merepresentasikan entitas buku dalam sistem perpustakaan.
+Atribut yang dimiliki mencakup \texttt{id} (identifikasi unik buku),
+\texttt{title} (judul buku), \texttt{author} (nama pengarang), dan
+\texttt{borrowed} (status peminjaman berupa nilai boolean).
+
+\begin{lstlisting}[caption={Implementasi kelas \texttt{Book}},
+                   label={lst:book}]
+package org.example;
+
+public class Book {
+    private int id;
+    private String title;
+    private String author;
+    private boolean borrowed;
+
+    public Book(int id, String title, String author) {
+        this.id = id;
+        this.title = title;
+        this.author = author;
+        this.borrowed = false;
+    }
+
+    public int getId()            { return id; }
+    public String getTitle()      { return title; }
+    public String getAuthor()     { return author; }
+    public boolean isBorrowed()   { return borrowed; }
+    public void setBorrowed(boolean borrowed) {
+        this.borrowed = borrowed;
+    }
+}
+\end{lstlisting}
+
+\subsection{Kelas \texttt{LibraryModel}}
+
+\texttt{LibraryModel} berperan sebagai lapisan akses data (\textit{data access
+layer}). Kelas ini bertanggung jawab atas operasi-operasi yang berhubungan
+langsung dengan penyimpanan dan pengambilan data buku. Dalam konteks pengujian,
+\texttt{LibraryModel} menjadi objek yang diejek (\textit{mocked}) karena
+bergantung pada mekanisme persistensi data yang berada di luar cakupan
+\textit{unit testing}.
+
+\begin{lstlisting}[caption={Implementasi kelas \texttt{LibraryModel}},
+                   label={lst:model}]
+package org.example;
+
+import java.util.ArrayList;
+import java.util.List;
+
+public class LibraryModel {
+    public List<Book> getAllBooks() {
+        return new ArrayList<>();
+    }
+
+    public void saveSearchKeyword(String keyword) { }
+
+    public boolean checkAvailability(int id) {
+        return false;
+    }
+
+    public void borrowBook(int id) { }
+}
+\end{lstlisting}
+
+\subsection{Kelas \texttt{LibraryControl}}
+
+\texttt{LibraryControl} merupakan lapisan logika bisnis (\textit{business logic
+layer}) yang mengorkestrasikan interaksi antara antarmuka pengguna dan lapisan
+data. Kelas ini menerima dependensi \texttt{LibraryModel} dan
+\texttt{NotificationService} melalui mekanisme \textit{constructor injection},
+mematuhi prinsip \textit{Dependency Inversion} dari SOLID.
+
+\begin{lstlisting}[caption={Implementasi kelas \texttt{LibraryControl}},
+                   label={lst:control}]
+package org.example;
+
+import java.util.List;
+
+public class LibraryControl {
+    private final LibraryModel model;
+    private NotificationService notificationService;
+
+    public LibraryControl(LibraryModel model) {
+        this.model = model;
+    }
+
+    public LibraryControl(LibraryModel model,
+                          NotificationService notificationService) {
+        this.model = model;
+        this.notificationService = notificationService;
+    }
+
+    public String searchBookAuthor(String title) {
+        List<Book> books = model.getAllBooks();
+        String result = "";
+        for (Book book : books) {
+            if (book.getTitle().equals(title)) {
+                model.saveSearchKeyword(title);
+                result = book.getAuthor();
+            }
+        }
+        return result;
+    }
+
+    public boolean checkAvailability(int id) {
+        return model.checkAvailability(id);
+    }
+
+    public boolean borrowBook(int id) {
+        boolean available = model.checkAvailability(id);
+        if (available) {
+            model.borrowBook(id);
+            return true;
+        }
+        return false;
+    }
+
+    public boolean borrowBookWithNotification(String title,
+                                              String username) {
+        List<Book> books = model.getAllBooks();
+        for (Book book : books) {
+            if (book.getTitle().equals(title) && !book.isBorrowed()) {
+                model.borrowBook(book.getId());
+                notificationService.sendNotification(username, title);
+                return true;
+            }
+        }
+        return false;
+    }
+}
+\end{lstlisting}
+
+\subsection{Kelas \texttt{NotificationService}}
+
+\texttt{NotificationService} merupakan layanan yang bertugas mengirimkan
+notifikasi kepada pengguna setelah transaksi peminjaman buku berhasil
+dilakukan. Dalam lingkungan produksi, kelas ini dapat terhubung ke sistem
+email, SMS, atau \textit{push notification}. Pada konteks pengujian, kelas ini
+diejek untuk menghindari pengiriman notifikasi nyata dan untuk memverifikasi
+bahwa metode \texttt{sendNotification} dipanggil dengan argumen yang benar.
+
+\begin{lstlisting}[caption={Implementasi kelas \texttt{NotificationService}},
+                   label={lst:notification}]
+package org.example;
+
+public class NotificationService {
+    public void sendNotification(String username, String title) {
+        System.out.println("Notification sent to " + username
+            + ": Buku '" + title
+            + "' berhasil dipinjam/dikembalikan.");
+    }
+}
+\end{lstlisting}
+
+% ─────────────────────────────────────────────────────────────────────────────
+\section{Hasil dan Pembahasan}
+% ─────────────────────────────────────────────────────────────────────────────
+
+Subbagian berikut membahas tiga skenario utama pengujian yang dirancang sesuai
+dengan kebutuhan sistem manajemen perpustakaan. Setiap skenario dianalisis dari
+perspektif identifikasi \textit{stub}/\textit{mock}, logika implementasi, serta
+interpretasi hasil pengujian.
+
+% ─── 4.1 ─────────────────────────────────────────────────────────────────────
+\subsection{Skenario 1: Pengecekan Ketersediaan Buku}
+
+\subsubsection{Deskripsi Fungsional}
+
+Skenario ini menguji kemampuan sistem untuk menentukan apakah sebuah buku
+dengan \textit{identifier} tertentu (\texttt{id}) tersedia untuk dipinjam atau
+tidak. Metode \texttt{checkAvailability(int id)} pada \texttt{LibraryControl}
+mendelegasikan pengecekan kepada \texttt{LibraryModel}, yang berinteraksi
+langsung dengan mekanisme persistensi data.
+
+\subsubsection{Identifikasi Stub dan Mock}
+
+\begin{table}[H]
+\centering
+\caption{Identifikasi \textit{Test Double} pada Skenario Pengecekan Ketersediaan}
+\label{tab:stub-mock-availability}
+\begin{tabular}{@{}p{3.5cm}p{2.5cm}p{4.5cm}p{3cm}@{}}
+\toprule
+\textbf{Objek} & \textbf{Jenis} & \textbf{Konfigurasi} & \textbf{Peran} \\
+\midrule
+\texttt{bookModel} &
+    Stub \& Mock &
+    \texttt{when(bookModel.checkAvailability(1)).thenReturn(true)} &
+    Menyediakan nilai kembalian palsu sekaligus diverifikasi interaksinya \\
+\addlinespace
+\texttt{bookModel} &
+    Mock &
+    \texttt{verify(bookModel, times(1)).checkAvailability(1)} &
+    Memastikan metode dipanggil tepat satu kali \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection{Implementasi Test Method}
+
+Dua \textit{test method} dirancang untuk mencakup kondisi positif (buku
+tersedia) dan kondisi negatif (buku tidak tersedia):
+
+\begin{lstlisting}[caption={Test method pengecekan ketersediaan buku},
+                   label={lst:test-availability}]
+@Test
+void testCheckAvailability_bookAvailable() {
+    // Stub: mendefinisikan perilaku model saat dipanggil dengan id=1
+    Mockito.when(bookModel.checkAvailability(1)).thenReturn(true);
+
+    boolean result = control.checkAvailability(1);
+
+    // Assertion: memverifikasi nilai kembalian
+    Assertions.assertTrue(result);
+    // Mock verification: memastikan metode dipanggil 1 kali
+    Mockito.verify(bookModel, Mockito.times(1)).checkAvailability(1);
+}
+
+@Test
+void testCheckAvailability_bookNotAvailable() {
+    // Stub: id=99 merepresentasikan buku yang tidak ditemukan/tersedia
+    Mockito.when(bookModel.checkAvailability(99)).thenReturn(false);
+
+    boolean result = control.checkAvailability(99);
+
+    Assertions.assertFalse(result);
+    Mockito.verify(bookModel, Mockito.times(1)).checkAvailability(99);
+}
+\end{lstlisting}
+
+\subsubsection{Analisis Hasil}
+
+Pada \texttt{testCheckAvailability\_bookAvailable}, \textit{stubbing}
+\texttt{when(bookModel.checkAvailability(1)).thenReturn(true)} mengkonfigurasi
+objek mock \texttt{bookModel} agar mengembalikan nilai \texttt{true} ketika
+dipanggil dengan argumen \texttt{id = 1}. Dengan demikian, metode
+\texttt{control.checkAvailability(1)} yang secara internal memanggil
+\texttt{model.checkAvailability(id)} akan menerima nilai \texttt{true} dan
+meneruskannya kepada pemanggil. \textit{Assertion} \texttt{assertTrue(result)}
+dikonfirmasi benar, dan verifikasi mock mengonfirmasi bahwa
+\texttt{checkAvailability(1)} dipanggil tepat satu kali.
+
+Pada \texttt{testCheckAvailability\_bookNotAvailable}, skenario yang diuji
+adalah ketika buku dengan \texttt{id = 99} tidak tersedia. \textit{Stub}
+mengembalikan \texttt{false}, sehingga hasil \textit{assertion}
+\texttt{assertFalse} terkonfirmasi. Kedua \textit{test case} ini secara efektif
+memvalidasi perilaku \textit{boundary} dari metode \texttt{checkAvailability}.
+
+% ─── 4.2 ─────────────────────────────────────────────────────────────────────
+\subsection{Skenario 2: Peminjaman Buku}
+
+\subsubsection{Deskripsi Fungsional}
+
+Metode \texttt{borrowBook(int id)} pada \texttt{LibraryControl} mengimplementasikan
+alur peminjaman buku yang terdiri dari dua langkah: (1) memeriksa ketersediaan
+buku melalui \texttt{model.checkAvailability(id)}, dan (2) memanggil
+\texttt{model.borrowBook(id)} apabila buku tersedia. Jika buku sedang dipinjam,
+metode \texttt{borrowBook} pada model \emph{tidak boleh} dipanggil.
+
+\subsubsection{Identifikasi Stub dan Mock}
+
+\begin{table}[H]
+\centering
+\caption{Identifikasi \textit{Test Double} pada Skenario Peminjaman Buku}
+\label{tab:stub-mock-borrow}
+\begin{tabular}{@{}p{3.5cm}p{2.5cm}p{4.5cm}p{3cm}@{}}
+\toprule
+\textbf{Objek} & \textbf{Jenis} & \textbf{Konfigurasi} & \textbf{Peran} \\
+\midrule
+\texttt{bookModel} &
+    Stub &
+    \texttt{when(checkAvailability(1)).thenReturn(true)} &
+    Mensimulasikan buku tersedia \\
+\addlinespace
+\texttt{bookModel} &
+    Mock &
+    \texttt{verify(bookModel, times(1)).borrowBook(1)} &
+    Verifikasi peminjaman dipanggil \\
+\addlinespace
+\texttt{bookModel} &
+    Stub &
+    \texttt{when(checkAvailability(1)).thenReturn(false)} &
+    Mensimulasikan buku tidak tersedia \\
+\addlinespace
+\texttt{bookModel} &
+    Mock &
+    \texttt{verify(bookModel, never()).borrowBook(anyInt())} &
+    Verifikasi peminjaman tidak dipanggil \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection{Implementasi Test Method}
+
+\begin{lstlisting}[caption={Test method peminjaman buku -- dua skenario},
+                   label={lst:test-borrow}]
+// Skenario 2a: Buku tidak sedang dipinjam
+@Test
+void testBorrowBook_bookNotBorrowed_shouldCallBorrowBook() {
+    // Stub: buku dengan id=1 tersedia
+    Mockito.when(bookModel.checkAvailability(1)).thenReturn(true);
+
+    boolean result = control.borrowBook(1);
+
+    // Assertion: peminjaman berhasil
+    Assertions.assertTrue(result);
+    // Mock verification: borrowBook HARUS dipanggil 1 kali
+    Mockito.verify(bookModel, Mockito.times(1)).borrowBook(1);
+}
+
+// Skenario 2b: Buku sedang dipinjam
+@Test
+void testBorrowBook_bookAlreadyBorrowed_shouldNotCallBorrowBook() {
+    // Stub: buku dengan id=1 tidak tersedia (sedang dipinjam)
+    Mockito.when(bookModel.checkAvailability(1)).thenReturn(false);
+
+    boolean result = control.borrowBook(1);
+
+    // Assertion: peminjaman gagal
+    Assertions.assertFalse(result);
+    // Mock verification: borrowBook TIDAK BOLEH dipanggil
+    Mockito.verify(bookModel, Mockito.never())
+           .borrowBook(Mockito.anyInt());
+}
+\end{lstlisting}
+
+\subsubsection{Analisis Hasil}
+
+\paragraph{Skenario 2a (Buku Tersedia).}
+Ketika \texttt{checkAvailability(1)} di-\textit{stub} mengembalikan
+\texttt{true}, alur eksekusi \texttt{borrowBook} akan masuk ke blok kondisi
+\texttt{if (available)} dan memanggil \texttt{model.borrowBook(id)}.
+Verifikasi \texttt{verify(bookModel, times(1)).borrowBook(1)} memastikan bahwa
+pemanggilan ini benar-benar terjadi tepat satu kali. Metode mengembalikan
+\texttt{true}, yang dikonfirmasi oleh \textit{assertion} \texttt{assertTrue}.
+
+\paragraph{Skenario 2b (Buku Sedang Dipinjam).}
+Ketika \texttt{checkAvailability(1)} mengembalikan \texttt{false}, alur
+eksekusi tidak masuk ke blok kondisi, sehingga \texttt{model.borrowBook(id)}
+tidak pernah dipanggil. Verifikasi \texttt{verify(bookModel, never()).borrowBook(anyInt())}
+menggunakan \texttt{never()} untuk membuktikan bahwa metode tersebut memang
+tidak dipanggil sama sekali. Penggunaan \texttt{anyInt()} sebagai
+\textit{argument matcher} memastikan verifikasi berlaku untuk semua nilai
+argumen integer, sehingga lebih komprehensif. Metode mengembalikan
+\texttt{false}, yang dikonfirmasi oleh \textit{assertion} \texttt{assertFalse}.
+
+Kedua skenario ini secara kolektif membuktikan kebenaran logika kondisional
+dalam metode \texttt{borrowBook}, menghindarkan pemanggilan yang tidak
+semestinya terhadap lapisan model.
+
+% ─── 4.3 ─────────────────────────────────────────────────────────────────────
+\subsection{Skenario 3: Peminjaman Buku dengan Notifikasi dan Verifikasi Urutan}
+
+\subsubsection{Deskripsi Fungsional}
+
+Skenario ini menguji metode \texttt{borrowBookWithNotification(String title,
+String username)} yang mengintegrasikan alur peminjaman buku dengan pengiriman
+notifikasi. Urutan pemanggilan yang diharapkan adalah:
+\begin{enumerate}
+    \item \texttt{model.getAllBooks()} -- pengambilan seluruh koleksi buku
+    \item \texttt{model.borrowBook(id)} -- pencatatan peminjaman pada lapisan data
+    \item \texttt{notificationService.sendNotification(username, title)} --
+          pengiriman notifikasi kepada peminjam
+\end{enumerate}
+
+Urutan ini penting karena memastikan integritas data: notifikasi hanya
+dikirimkan setelah data peminjaman berhasil dicatat.
+
+\subsubsection{Identifikasi Stub dan Mock}
+
+\begin{table}[H]
+\centering
+\caption{Identifikasi \textit{Test Double} pada Skenario Peminjaman dengan Notifikasi}
+\label{tab:stub-mock-notification}
+\begin{tabular}{@{}p{3.5cm}p{2.5cm}p{4.5cm}p{3cm}@{}}
+\toprule
+\textbf{Objek} & \textbf{Jenis} & \textbf{Konfigurasi} & \textbf{Peran} \\
+\midrule
+\texttt{bookModel} &
+    Stub &
+    \texttt{when(getAllBooks()).thenReturn(books)} &
+    Menyediakan daftar buku fiktif \\
+\addlinespace
+\texttt{bookModel} &
+    Mock (\textit{InOrder}) &
+    \texttt{inOrder.verify(bookModel).getAllBooks()} &
+    Verifikasi urutan pemanggilan \\
+\addlinespace
+\texttt{bookModel} &
+    Mock (\textit{InOrder}) &
+    \texttt{inOrder.verify(bookModel).borrowBook(1)} &
+    Verifikasi peminjaman dalam urutan \\
+\addlinespace
+\texttt{notificationService} &
+    Mock (\textit{InOrder}) &
+    \texttt{inOrder.verify(notificationService).sendNotification(...)} &
+    Verifikasi notifikasi dalam urutan \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection{Implementasi Test Method}
+
+\begin{lstlisting}[caption={Test method peminjaman dengan notifikasi dan InOrder},
+                   label={lst:test-notification}]
+@Test
+void testBorrowBookWithNotification_inOrder() {
+    // Persiapan: buat daftar buku dengan status belum dipinjam
+    List<Book> books = new ArrayList<>();
+    Book book = new Book(1, "Tutorial Figma", "Budi");
+    book.setBorrowed(false);
+    books.add(book);
+
+    // Stub: getAllBooks() mengembalikan daftar buku yang telah disiapkan
+    Mockito.when(bookModel.getAllBooks()).thenReturn(books);
+
+    boolean result = control.borrowBookWithNotification(
+                         "Tutorial Figma", "Andi");
+
+    Assertions.assertTrue(result);
+
+    // InOrder: mendefinisikan objek yang akan diverifikasi urutannya
+    InOrder inOrder = Mockito.inOrder(bookModel, notificationService);
+
+    // Verifikasi urutan: 1. getAllBooks, 2. borrowBook, 3. sendNotification
+    inOrder.verify(bookModel).getAllBooks();
+    inOrder.verify(bookModel).borrowBook(1);
+    inOrder.verify(notificationService)
+           .sendNotification("Andi", "Tutorial Figma");
+}
+
+@Test
+void testBorrowBookWithNotification_bookAlreadyBorrowed_inOrder() {
+    List<Book> books = new ArrayList<>();
+    Book book = new Book(1, "Tutorial Figma", "Budi");
+    book.setBorrowed(true);  // buku sedang dipinjam
+    books.add(book);
+
+    Mockito.when(bookModel.getAllBooks()).thenReturn(books);
+
+    boolean result = control.borrowBookWithNotification(
+                         "Tutorial Figma", "Andi");
+
+    Assertions.assertFalse(result);
+
+    // getAllBooks harus dipanggil sekali
+    Mockito.verify(bookModel, Mockito.times(1)).getAllBooks();
+    // borrowBook dan sendNotification TIDAK BOLEH dipanggil
+    Mockito.verify(bookModel, Mockito.never())
+           .borrowBook(Mockito.anyInt());
+    Mockito.verify(notificationService, Mockito.never())
+           .sendNotification(Mockito.anyString(), Mockito.anyString());
+}
+\end{lstlisting}
+
+\subsubsection{Analisis Penggunaan InOrder}
+
+Penggunaan \texttt{InOrder} dalam Mockito memungkinkan verifikasi bahwa
+serangkaian pemanggilan metode terjadi dalam urutan yang presisi. Hal ini
+berbeda dengan verifikasi individual menggunakan \texttt{verify}, yang hanya
+memastikan sebuah metode dipanggil tanpa memperhatikan relasi temporalnya
+terhadap metode lain.
+
+Secara implementatif, objek \texttt{InOrder} dibuat melalui
+\texttt{Mockito.inOrder(bookModel, notificationService)}, di mana argumen yang
+diberikan adalah daftar mock yang urutan interaksinya ingin diverifikasi.
+Pemanggilan \texttt{inOrder.verify(mock).method()} kemudian dilakukan sesuai
+urutan yang diharapkan.
+
+Apabila urutan aktual tidak sesuai—misalnya \texttt{sendNotification} terpanggil
+sebelum \texttt{borrowBook}—maka Mockito akan melempar
+\texttt{VerificationInOrderFailure}, menyebabkan \textit{test} gagal.
+Mekanisme ini sangat berguna untuk memvalidasi invarian urutan yang kritis
+secara semantis, seperti memastikan notifikasi hanya dikirim setelah data
+persisten berhasil diperbarui.
+
+\subsubsection{Analisis Hasil}
+
+\paragraph{Skenario 3a (Buku Tersedia, Peminjaman Berhasil).}
+Dengan \textit{stub} \texttt{getAllBooks()} mengembalikan daftar berisi satu
+buku dengan status \texttt{borrowed = false}, metode
+\texttt{borrowBookWithNotification} menemukan kecocokan berdasarkan judul,
+memanggil \texttt{model.borrowBook(1)}, lalu
+\texttt{notificationService.sendNotification("Andi", "Tutorial Figma")}.
+Verifikasi \texttt{InOrder} berhasil mengonfirmasi ketiga pemanggilan terjadi
+dalam urutan yang benar. Metode mengembalikan \texttt{true}.
+
+\paragraph{Skenario 3b (Buku Sedang Dipinjam).}
+Dengan status buku \texttt{borrowed = true}, kondisi
+\texttt{!book.isBorrowed()} bernilai \texttt{false}, sehingga blok peminjaman
+tidak dieksekusi. Hanya \texttt{getAllBooks()} yang dipanggil. Verifikasi
+\texttt{never()} pada \texttt{borrowBook} dan \texttt{sendNotification}
+mengonfirmasi bahwa kedua metode tersebut tidak dieksekusi, menjamin integritas
+logika bisnis.
+
+% ─────────────────────────────────────────────────────────────────────────────
+\section{Ringkasan Hasil Pengujian}
+% ─────────────────────────────────────────────────────────────────────────────
+
+Seluruh \textit{test case} yang diimplementasikan dalam kelas \texttt{LibraryTest}
+dieksekusi menggunakan Maven (\texttt{mvn test}) dan menghasilkan luaran sebagai
+berikut:
+
+\begin{verbatim}
+[INFO] Running LibraryTest
+[INFO] Tests run: 8, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS
+\end{verbatim}
+
+Tabel \ref{tab:test-summary} merangkum seluruh \textit{test case} beserta
+statusnya:
+
+\begin{table}[H]
+\centering
+\caption{Ringkasan Hasil Pengujian}
+\label{tab:test-summary}
+\begin{tabular}{@{}clll@{}}
+\toprule
+\textbf{No.} & \textbf{Nama Test Method} & \textbf{Skenario} & \textbf{Status} \\
+\midrule
+1 & \texttt{TestSearchBookAuthor} &
+    Pencarian penulis buku & \textcolor{codegreen}{\textbf{PASSED}} \\
+2 & \texttt{testSearchBookAuthor\_withNever} &
+    Pencarian buku tidak ditemukan & \textcolor{codegreen}{\textbf{PASSED}} \\
+3 & \texttt{testCheckAvailability\_bookAvailable} &
+    Buku tersedia & \textcolor{codegreen}{\textbf{PASSED}} \\
+4 & \texttt{testCheckAvailability\_bookNotAvailable} &
+    Buku tidak tersedia & \textcolor{codegreen}{\textbf{PASSED}} \\
+5 & \texttt{testBorrowBook\_bookNotBorrowed\_...} &
+    Peminjaman berhasil & \textcolor{codegreen}{\textbf{PASSED}} \\
+6 & \texttt{testBorrowBook\_bookAlreadyBorrowed\_...} &
+    Peminjaman ditolak & \textcolor{codegreen}{\textbf{PASSED}} \\
+7 & \texttt{testBorrowBookWithNotification\_inOrder} &
+    Peminjaman + notifikasi berurutan & \textcolor{codegreen}{\textbf{PASSED}} \\
+8 & \texttt{testBorrowBookWithNotification\_...\_inOrder} &
+    Buku dipinjam, tidak ada notifikasi & \textcolor{codegreen}{\textbf{PASSED}} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ─────────────────────────────────────────────────────────────────────────────
+\section{Kesimpulan}
+% ─────────────────────────────────────────────────────────────────────────────
+
+Berdasarkan hasil implementasi dan pengujian yang telah dilakukan, dapat
+ditarik beberapa kesimpulan sebagai berikut:
+
+\begin{enumerate}[label=\arabic*.]
+    \item \textbf{Efektivitas Mockito dalam Unit Testing.} Framework Mockito
+          terbukti efektif dalam mengisolasi \textit{unit under test}
+          (\texttt{LibraryControl}) dari dependensi eksternalnya
+          (\texttt{LibraryModel} dan \texttt{NotificationService}),
+          memungkinkan pengujian yang deterministik dan berfokus pada logika
+          bisnis.
+
+    \item \textbf{Peran Stub dan Mock.} \textit{Stub} (melalui
+          \texttt{when().thenReturn()}) berperan dalam menyediakan data
+          masukan yang terkendali kepada SUT, sedangkan \textit{mock}
+          (melalui \texttt{verify()}) berperan dalam memvalidasi bahwa
+          interaksi yang diharapkan antar komponen benar-benar terjadi.
+          Kombinasi keduanya menghasilkan pengujian yang komprehensif.
+
+    \item \textbf{Keunggulan InOrder untuk Urutan Kritis.} Penggunaan
+          \texttt{InOrder} Mockito memberikan kemampuan tambahan untuk
+          memverifikasi urutan temporal pemanggilan metode, yang sangat
+          relevan dalam skenario di mana urutan operasi memiliki implikasi
+          semantis penting—seperti memastikan notifikasi hanya dikirim
+          setelah transaksi data berhasil.
+
+    \item \textbf{Kualitas Kode Uji.} Seluruh kedelapan \textit{test case}
+          berhasil lulus tanpa kegagalan, mengindikasikan bahwa implementasi
+          sistem manajemen perpustakaan telah memenuhi spesifikasi yang
+          ditetapkan dan logika kondisionalnya berfungsi dengan benar.
+
+    \item \textbf{Penerapan Prinsip \textit{Dependency Injection}.}
+          Desain \texttt{LibraryControl} dengan \textit{constructor injection}
+          memfasilitasi \textit{testability} kode, karena dependensi dapat
+          dengan mudah digantikan oleh \textit{mock object} selama pengujian
+          tanpa modifikasi kode produksi.
+\end{enumerate}
+
+% ─────────────────────────────────────────────────────────────────────────────
+\section*{Referensi}
+\addcontentsline{toc}{section}{Referensi}
+% ─────────────────────────────────────────────────────────────────────────────
+
+\begin{enumerate}[label={[\arabic*]}]
+    \item Mockito Framework. \textit{Mockito -- Tasty mocking framework for
+          unit tests in Java}. Tersedia di: \url{https://site.mockito.org/}
+          [Diakses: Maret 2026].
+
+    \item JUnit Team. \textit{JUnit 5 User Guide}. Tersedia di:
+          \url{https://junit.org/junit5/docs/current/user-guide/}
+          [Diakses: Maret 2026].
+
+    \item Meszaros, G. (2007). \textit{xUnit Test Patterns: Refactoring Test
+          Code}. Addison-Wesley Professional.
+
+    \item Freeman, S., \& Pryce, N. (2009). \textit{Growing Object-Oriented
+          Software, Guided by Tests}. Addison-Wesley Professional.
+
+    \item Osherove, R. (2013). \textit{The Art of Unit Testing} (2nd ed.).
+          Manning Publications.
+
+    \item Apache Maven Project. \textit{Maven -- Welcome to Apache Maven}.
+          Tersedia di: \url{https://maven.apache.org/}
+          [Diakses: Maret 2026].
+\end{enumerate}
+
+\end{document}
