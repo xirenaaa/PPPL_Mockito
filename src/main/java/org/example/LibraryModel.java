@@ -4,13 +4,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class LibraryModel {
-    public List<Book> getAllBooks()
-    {
-        List<Book> allBooks = new ArrayList<>();
-        return allBooks;
+    public List<Book> getAllBooks() {
+        return new ArrayList<>();
     }
-    public void saveSearchKeyword(String keyword)
-    {
+
+    public void saveSearchKeyword(String keyword) {
     }
 
     public boolean checkAvailability(int id) {

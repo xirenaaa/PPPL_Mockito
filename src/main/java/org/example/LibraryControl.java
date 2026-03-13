@@ -15,8 +15,7 @@ public class LibraryControl {
         this.notificationService = notificationService;
     }
 
-    public String searchBookAuthor(String title)
-    {
+    public String searchBookAuthor(String title) {
         List<Book> books = model.getAllBooks();
         String result = "";
         for (Book book : books) {
@@ -24,7 +23,6 @@ public class LibraryControl {
                 model.saveSearchKeyword(title);
                 result = book.getAuthor();
             }
-            //else result = "Book Not Found";
         }
         return result;
     }
